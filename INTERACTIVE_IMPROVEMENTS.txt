@@ -1,0 +1,435 @@
+================================================================================
+ПЯТЬ УСОВЕРШЕНСТВОВАНИЙ ДЛЯ ИНТЕРАКТИВНОЙ СИМУЛЯЦИИ ПОКЕРА
+================================================================================
+Дата: 15 ноября 2025
+Проект: Coursera-MLOPs-Foundations-Lab-2-poker-simulator
+
+================================================================================
+УЛУЧШЕНИЕ 1: ДОБАВИТЬ ПОЛНЫЙ ЦИКЛ СТАВОК (BET, RAISE, FOLD, CHECK, CALL)
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- Игрок может только указать размер ставки
+- Нет возможности сбросить карты (fold)
+- Нет опции check (пропустить ход без ставки)
+- Нельзя повысить ставку (raise)
+
+ЧТО НУЖНО ДОБАВИТЬ:
+✓ Fold - сброс карт и потеря ставки
+✓ Check - пропуск хода, если ставка не требуется
+✓ Call - уравнять ставку оппонента
+✓ Raise - повысить ставку
+✓ All-in - поставить все деньги
+
+ПРИМЕР РЕАЛИЗАЦИИ:
+```python
+actions = click.prompt(
+    "Ваше действие",
+    type=click.Choice(['fold', 'check', 'call', 'raise', 'all-in'])
+)
+
+if actions == 'fold':
+    click.secho(f"{name} сбросил карты и теряет ${ante}", fg="red")
+    history['money'] -= ante
+    continue
+elif actions == 'raise':
+    raise_amount = click.prompt("На сколько повысить?", type=int)
+    bet = current_bet + raise_amount
+```
+
+РЕАЛИСТИЧНОСТЬ:
+В настоящем покере игроки имеют выбор действий на каждом этапе игры, что делает
+игру стратегической и непредсказуемой.
+
+================================================================================
+УЛУЧШЕНИЕ 2: РЕАЛИЗОВАТЬ ОБМЕН КАРТ (DRAW POKER)
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- Игрок получает 5 карт и играет только с ними
+- Нет возможности улучшить руку
+- Статичная игра без динамики
+
+ЧТО НУЖНО ДОБАВИТЬ:
+✓ Возможность обменять от 0 до 5 карт
+✓ Стратегия обмена для компьютера (AI)
+✓ Показывать, сколько карт обменял оппонент
+✓ Два раунда ставок: до и после обмена
+
+ПРИМЕР РЕАЛИЗАЦИИ:
+```python
+# Показываем руку игрока
+print(f"Ваша рука: {hand1}")
+print(f"Комбинация: {evaluate_poker_hand(hand1)}")
+
+# Спрашиваем какие карты обменять
+exchange = click.prompt(
+    "Какие карты обменять? (например: 1,3,5 или 0 для пропуска)",
+    type=str
+)
+
+if exchange != '0':
+    positions = [int(x)-1 for x in exchange.split(',')]
+    for pos in positions:
+        hand1[pos] = deal_hand(deck, 1)[0]
+    print(f"Новая рука: {hand1}")
+    print(f"Новая комбинация: {evaluate_poker_hand(hand1)}")
+
+# Компьютер тоже обменивает карты по стратегии
+computer_exchange = ai_decide_exchange(hand2)
+print(f"Компьютер обменял {len(computer_exchange)} карт(ы)")
+```
+
+РЕАЛИСТИЧНОСТЬ:
+Draw Poker - классический вариант игры, где обмен карт является ключевым
+элементом стратегии и создает дополнительное напряжение.
+
+================================================================================
+УЛУЧШЕНИЕ 3: ПОКАЗЫВАТЬ ЧАСТИЧНУЮ ИНФОРМАЦИЮ О РУКЕ ОППОНЕНТА
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- Рука компьютера полностью скрыта до конца
+- Игрок принимает решения "вслепую"
+- Нет элемента анализа видимых карт
+
+ЧТО НУЖНО ДОБАВИТЬ:
+✓ Показывать одну открытую карту компьютера
+✓ Отображать диапазон возможных комбинаций
+✓ Анимация раскрытия карт в конце раунда
+✓ История предыдущих рук оппонента
+
+ПРИМЕР РЕАЛИЗАЦИИ:
+```python
+# Показываем одну карту компьютера
+visible_card = hand2[0]
+hidden_cards = ["??"] * 4
+
+print("Рука компьютера:")
+if visible_card[-1] in ["H", "D"]:
+    click.secho(f"{visible_card} ", fg="red", nl=False)
+else:
+    click.secho(f"{visible_card} ", fg="black", nl=False)
+    
+for hidden in hidden_cards:
+    click.secho(f"{hidden} ", fg="blue", nl=False)
+click.echo()
+
+# Анализ возможных комбинаций
+possible_hands = analyze_possible_hands(visible_card)
+print(f"Возможные комбинации оппонента: {possible_hands}")
+
+# В конце - анимация раскрытия
+click.secho("Раскрытие карт...", fg="yellow")
+time.sleep(1)
+for i, card in enumerate(hand2):
+    click.secho(f"Карта {i+1}: {card}", fg="green")
+    time.sleep(0.5)
+```
+
+РЕАЛИСТИЧНОСТЬ:
+В Texas Hold'em есть общие карты, в Stud Poker - частично открытые карты.
+Это позволяет игрокам анализировать силу руки оппонента и принимать
+обоснованные решения.
+
+================================================================================
+УЛУЧШЕНИЕ 4: ДОБАВИТЬ AI С РАЗНЫМИ СТИЛЯМИ ИГРЫ И БЛЕФОМ
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- Компьютер играет случайно без стратегии
+- Нет адаптации к стилю игрока
+- Отсутствует блеф и психология
+
+ЧТО НУЖНО ДОБАВИТЬ:
+✓ Три стиля AI: консервативный, агрессивный, сбалансированный
+✓ Система блефа (ставки со слабой рукой)
+✓ Анализ паттернов игрока
+✓ Адаптивная стратегия
+✓ Возможность выбрать сложность оппонента
+
+ПРИМЕР РЕАЛИЗАЦИИ:
+```python
+class PokerAI:
+    def __init__(self, style='balanced'):
+        self.style = style  # conservative, aggressive, balanced
+        self.bluff_probability = {
+            'conservative': 0.1,
+            'aggressive': 0.4,
+            'balanced': 0.2
+        }
+        self.player_stats = {'fold_rate': 0, 'avg_bet': 0}
+    
+    def decide_action(self, hand, pot, money, player_history):
+        hand_strength = self.evaluate_hand_strength(hand)
+        
+        # Блеф
+        if random.random() < self.bluff_probability[self.style]:
+            if hand_strength < 0.3:
+                return 'raise', pot * 2  # Блеф!
+        
+        # Консервативная игра
+        if self.style == 'conservative':
+            if hand_strength > 0.7:
+                return 'raise', pot * 1.5
+            elif hand_strength > 0.4:
+                return 'call', pot
+            else:
+                return 'fold', 0
+        
+        # Агрессивная игра
+        elif self.style == 'aggressive':
+            if hand_strength > 0.5:
+                return 'raise', pot * 3
+            elif hand_strength > 0.2:
+                return 'call', pot
+            else:
+                if random.random() < 0.3:
+                    return 'raise', pot  # Агрессивный блеф
+                return 'fold', 0
+        
+        # Сбалансированная игра
+        else:
+            if hand_strength > 0.6:
+                return 'raise', pot * 2
+            elif hand_strength > 0.3:
+                return 'call', pot
+            else:
+                return 'fold', 0
+
+# Выбор сложности
+ai_style = click.prompt(
+    "Выберите стиль оппонента",
+    type=click.Choice(['conservative', 'aggressive', 'balanced', 'random'])
+)
+ai = PokerAI(style=ai_style)
+```
+
+РЕАЛИСТИЧНОСТЬ:
+В реальном покере противники имеют разные стили игры, используют психологию
+и блеф. Это делает игру непредсказуемой и требует адаптации стратегии.
+
+================================================================================
+УЛУЧШЕНИЕ 5: ДЕТАЛЬНАЯ СТАТИСТИКА И АНАЛИТИКА С ВИЗУАЛИЗАЦИЕЙ
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- Базовая статистика: wins, losses, ties, money
+- Данные только за текущую сессию
+- Нет визуализации трендов
+- Отсутствует анализ эффективности
+
+ЧТО НУЖНО ДОБАВИТЬ:
+✓ Подробная статистика по типам комбинаций
+✓ График изменения банкролла
+✓ Анализ прибыльности по типам рук
+✓ Сравнение с оптимальной стратегией
+✓ Сохранение истории в БД/JSON
+✓ Экспорт отчетов
+
+ПРИМЕР РЕАЛИЗАЦИИ:
+```python
+import matplotlib.pyplot as plt
+import json
+from datetime import datetime
+
+class GameStatistics:
+    def __init__(self):
+        self.history_file = 'game_history.json'
+        self.load_history()
+    
+    def save_game(self, game_data):
+        """Сохранить игру в историю"""
+        game_data['timestamp'] = datetime.now().isoformat()
+        self.history['games'].append(game_data)
+        with open(self.history_file, 'w') as f:
+            json.dump(self.history, f, indent=2)
+    
+    def show_statistics(self):
+        """Показать детальную статистику"""
+        click.secho("\n=== ДЕТАЛЬНАЯ СТАТИСТИКА ===", fg="cyan", bold=True)
+        
+        # Общая статистика
+        total_games = len(self.history['games'])
+        total_wins = sum(1 for g in self.history['games'] if g['result'] == 'win')
+        win_rate = (total_wins / total_games * 100) if total_games > 0 else 0
+        
+        print(f"Всего игр: {total_games}")
+        print(f"Побед: {total_wins} ({win_rate:.1f}%)")
+        print(f"ROI: {self.calculate_roi():.2f}%")
+        
+        # Статистика по комбинациям
+        print("\nПобеды по комбинациям:")
+        hand_stats = self.analyze_by_hand_type()
+        for hand, data in hand_stats.items():
+            print(f"  {hand}: {data['wins']}/{data['total']} "
+                  f"({data['win_rate']:.1f}%)")
+        
+        # Прибыльность
+        print(f"\nСредняя ставка: ${self.average_bet():.2f}")
+        print(f"Средний выигрыш: ${self.average_win():.2f}")
+        print(f"Максимальный выигрыш: ${self.max_win()}")
+        print(f"Максимальный проигрыш: ${self.max_loss()}")
+    
+    def plot_bankroll_chart(self):
+        """График изменения банкролла"""
+        bankroll_history = [g['money_after'] for g in self.history['games']]
+        rounds = list(range(1, len(bankroll_history) + 1))
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(rounds, bankroll_history, marker='o', linewidth=2)
+        plt.axhline(y=100, color='r', linestyle='--', label='Starting bankroll')
+        plt.title('Bankroll Over Time', fontsize=16, fontweight='bold')
+        plt.xlabel('Round', fontsize=12)
+        plt.ylabel('Money ($)', fontsize=12)
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('bankroll_chart.png')
+        click.secho("График сохранен: bankroll_chart.png", fg="green")
+    
+    def plot_hand_distribution(self):
+        """Распределение комбинаций"""
+        hands = [g['hand_type'] for g in self.history['games']]
+        hand_counts = {}
+        for hand in hands:
+            hand_counts[hand] = hand_counts.get(hand, 0) + 1
+        
+        plt.figure(figsize=(12, 6))
+        plt.bar(hand_counts.keys(), hand_counts.values(), color='skyblue')
+        plt.title('Hand Distribution', fontsize=16, fontweight='bold')
+        plt.xlabel('Hand Type', fontsize=12)
+        plt.ylabel('Count', fontsize=12)
+        plt.xticks(rotation=45, ha='right')
+        plt.grid(True, axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.savefig('hand_distribution.png')
+        click.secho("График сохранен: hand_distribution.png", fg="green")
+    
+    def export_to_csv(self):
+        """Экспорт статистики в CSV"""
+        import csv
+        with open('poker_stats.csv', 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                'round', 'hand_type', 'probability', 'bet', 
+                'result', 'money_after', 'ev', 'timestamp'
+            ])
+            writer.writeheader()
+            for i, game in enumerate(self.history['games'], 1):
+                game['round'] = i
+                writer.writerow(game)
+        click.secho("Данные экспортированы: poker_stats.csv", fg="green")
+
+# Использование в игре
+stats = GameStatistics()
+
+# После каждого раунда
+stats.save_game({
+    'hand_type': evaluate_poker_hand(hand1),
+    'probability': hand_probability,
+    'bet': bet,
+    'result': 'win' if status['winner'] == 'Hand 1' else 'loss',
+    'money_after': history['money'],
+    'ev': expected_value
+})
+
+# В конце сессии
+stats.show_statistics()
+
+show_charts = click.confirm("Показать графики?", default=True)
+if show_charts:
+    stats.plot_bankroll_chart()
+    stats.plot_hand_distribution()
+
+export_data = click.confirm("Экспортировать данные в CSV?", default=False)
+if export_data:
+    stats.export_to_csv()
+```
+
+РЕАЛИСТИЧНОСТЬ:
+Профессиональные покеристы постоянно анализируют свою игру через
+статистику и графики. Tracking софт (PokerTracker, Hold'em Manager)
+является стандартом в индустрии. Детальная аналитика помогает
+выявлять слабые места и улучшать стратегию.
+
+================================================================================
+ДОПОЛНИТЕЛЬНЫЕ УЛУЧШЕНИЯ (БОНУС)
+================================================================================
+
+6. СИСТЕМА BLIND/ANTE (обязательные ставки)
+   - Растущие блайнды в турнирном режиме
+   - Small blind и Big blind
+
+7. МНОГОПОЛЬЗОВАТЕЛЬСКАЯ ИГРА
+   - Игра против нескольких AI или людей
+   - Lobby system
+   - Чат
+
+8. СИСТЕМА ДОСТИЖЕНИЙ И НАГРАД
+   - Бейджи за редкие комбинации
+   - Прогресс и уровни
+   - Таблица лидеров
+
+9. ОБУЧАЮЩИЙ РЕЖИМ
+   - Подсказки оптимальных действий
+   - Объяснение ошибок
+   - Тренировочные сценарии
+
+10. ЗВУК И АНИМАЦИЯ
+    - Звуки раздачи карт
+    - Чипсы и анимация ставок
+    - ASCII art для карт
+
+================================================================================
+ПРИОРИТИЗАЦИЯ РЕАЛИЗАЦИИ
+================================================================================
+
+ФАЗА 1 (Быстрая реализация, большой эффект):
+→ Улучшение 1: Полный цикл ставок (2-3 часа)
+→ Улучшение 3: Частичная информация (1-2 часа)
+
+ФАЗА 2 (Средняя сложность):
+→ Улучшение 2: Обмен карт (3-4 часа)
+→ Улучшение 5: Статистика (4-6 часов)
+
+ФАЗА 3 (Сложная, но эффектная):
+→ Улучшение 4: AI с блефом (6-8 часов)
+
+================================================================================
+ИЗМЕРЯЕМЫЕ ПОКАЗАТЕЛИ УЛУЧШЕНИЯ
+================================================================================
+
+ТЕКУЩИЙ ОПЫТ (1-10):
+- Реалистичность: 3/10
+- Вовлеченность: 4/10
+- Стратегическая глубина: 2/10
+- Обучающая ценность: 5/10
+- Replay Value: 3/10
+
+ПОСЛЕ УЛУЧШЕНИЙ (ожидается):
+- Реалистичность: 8/10
+- Вовлеченность: 9/10
+- Стратегическая глубина: 8/10
+- Обучающая ценность: 9/10
+- Replay Value: 8/10
+
+================================================================================
+ЗАКЛЮЧЕНИЕ
+================================================================================
+
+Эти пять улучшений трансформируют простой симулятор в полноценную
+покерную платформу, которая:
+
+✓ Приближена к реальной игре
+✓ Обучает стратегии и аналитике
+✓ Предоставляет ценную обратную связь
+✓ Мотивирует на повторное использование
+✓ Демонстрирует MLOps практики
+
+Реализация всех улучшений займет примерно 20-30 часов разработки,
+но результат будет достоин портфолио проекта и практического
+применения в обучении.
+
+================================================================================
+КОНЕЦ ДОКУМЕНТА
+================================================================================
